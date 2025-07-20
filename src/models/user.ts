@@ -2,14 +2,27 @@ import { Schema, model, InferSchemaType } from "mongoose";
 
 const userSchema = new Schema(
   {
-    name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    passwordHash: { type: String, required: true },
-    age: Number,
-    gender: { type: String, enum: ["male", "female", "other"] },
+    userId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    name: { type: String, trim: true },
+    email: { type: String, lowercase: true },
+    dateOfBirth: Date,
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+    },
+    settings: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
   },
   { timestamps: true }
 );
 
-export type UserDoc = InferSchemaType<typeof userSchema>;
-export const User = model<UserDoc>("User", userSchema);
+export type UserDocument = InferSchemaType<typeof userSchema>;
+export default model<UserDocument>("User", userSchema);

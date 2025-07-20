@@ -3,8 +3,9 @@ import express, { Request, Response, NextFunction } from "express";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 
-import { connectDB } from "./clients/mongoClient.js"; // note .js
-import diaryRoutes from "./routes/diaryRoutes.js";
+import { connectDB } from "./clients/mongoClient";
+import diaryRoutes from "./routes/diaryRoutes";
+import userRoutes from "./routes/userRoutes";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ async function startServer() {
   app.use(bodyParser.json());
 
   app.use("/api/diaries", diaryRoutes);
+  app.use("/api/users", userRoutes);
 
   app.get("/", (_req: Request, res: Response) => {
     res.send("Nutrition Tracker API is running...");
