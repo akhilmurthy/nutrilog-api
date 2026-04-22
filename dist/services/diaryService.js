@@ -1,109 +1,190 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.addFoodToMeal = exports.deleteDiaryEntry = exports.getDiaryById = exports.updateDiaryEntry = exports.createDiaryEntry = void 0;
-const diary_1 = require("../models/diary");
-const food_1 = require("../models/food");
-// Create a new diary entry
-const createDiaryEntry = async (data) => {
-    try {
-        const { date, meals } = data; // expect date and meals (breakfast, lunch, dinner)
-        // Ensure meals is an object with the necessary properties
-        const diaryEntry = new diary_1.Diary({
-            date,
-            meals: {
-                breakfast: meals?.breakfast || [],
-                lunch: meals?.lunch || [],
-                dinner: meals?.dinner || [],
-            },
-        });
-        const savedDiary = await diaryEntry.save();
-        return savedDiary;
-    }
-    catch (error) {
-        throw new Error("Error creating diary entry: " + error);
-    }
+exports.updateFoodInMeal = exports.removeFoodFromMeal = exports.removeExercise = exports.addExercise = exports.addFoodToMeal = exports.deleteDiaryEntry = exports.replaceDiaryEntry = exports.getDiaryById = exports.createDiaryEntry = void 0;
+// src/services/diaryService.ts
+const firebase_1 = require("../config/firebase");
+const firestore_1 = require("firebase-admin/firestore");
+const DIARIES_COLLECTION = "diaries";
+const createDiaryEntry = async (userId, payload) => {
+    const now = new Date();
+    const dateKey = new Date(payload.date).toISOString().split('T')[0];
+    const docId = userId ? `${userId}_${dateKey}` : dateKey;
+    const doc = {
+        id: docId,
+        userId: userId || '',
+        date: new Date(payload.date),
+        meals: {
+            breakfast: payload.meals?.breakfast ?? [],
+            lunch: payload.meals?.lunch ?? [],
+            dinner: payload.meals?.dinner ?? [],
+            snacks: payload.meals?.snacks ?? [],
+        },
+        exercises: payload.exercises ?? [],
+        createdAt: now,
+        updatedAt: now,
+    };
+    await firebase_1.db.collection(DIARIES_COLLECTION).doc(docId).set(doc);
+    return doc;
 };
 exports.createDiaryEntry = createDiaryEntry;
-// Update a specific diary entry
-const updateDiaryEntry = async (id, data) => {
-    try {
-        const { meals } = data; // expect updated meals data
-        // Find and update the diary entry by id
-        const updatedDiary = await diary_1.Diary.findByIdAndUpdate(id, {
-            meals: {
-                breakfast: meals?.breakfast || [],
-                lunch: meals?.lunch || [],
-                dinner: meals?.dinner || [],
-            },
-        }, { new: true });
-        if (!updatedDiary) {
-            throw new Error("Diary entry not found");
-        }
-        return updatedDiary;
+const getDiaryById = async (id, userId) => {
+    const doc = await firebase_1.db.collection(DIARIES_COLLECTION).doc(id).get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
     }
-    catch (error) {
-        throw new Error("Error updating diary entry: " + error);
+    const diary = doc.data();
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
     }
-};
-exports.updateDiaryEntry = updateDiaryEntry;
-// Get a specific diary entry by its ID
-const getDiaryById = async (id) => {
-    try {
-        const diary = await diary_1.Diary.findById(id).populate("meals.breakfast meals.lunch meals.dinner");
-        if (!diary) {
-            throw new Error("Diary entry not found");
-        }
-        // Ensure meals is initialized
-        if (!diary.meals) {
-            diary.meals = {
-                breakfast: [],
-                lunch: [],
-                dinner: [],
-            };
-        }
-        return diary;
-    }
-    catch (error) {
-        throw new Error("Error retrieving diary entry: " + error);
-    }
+    return diary;
 };
 exports.getDiaryById = getDiaryById;
-const deleteDiaryEntry = async (id) => {
-    try {
-        const deletedDiary = await diary_1.Diary.findByIdAndDelete(id);
-        if (!deletedDiary) {
-            throw new Error("Diary entry not found");
-        }
+const replaceDiaryEntry = async (id, diary) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        return null;
     }
-    catch (error) {
-        throw new Error("Error deleting diary entry: " + error);
+    const updatedDiary = {
+        ...diary,
+        updatedAt: new Date(),
+    };
+    await docRef.set(updatedDiary);
+    return updatedDiary;
+};
+exports.replaceDiaryEntry = replaceDiaryEntry;
+const deleteDiaryEntry = async (id, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
     }
+    const diary = doc.data();
+    // Check if userId matches (if provided)
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
+    await docRef.delete();
 };
 exports.deleteDiaryEntry = deleteDiaryEntry;
-const addFoodToMeal = async (diaryId, meal, foodData) => {
-    try {
-        const diary = await diary_1.Diary.findById(diaryId);
-        if (!diary) {
-            throw new Error("Diary entry not found");
-        }
-        if (!diary.meals) {
-            diary.meals = {
-                breakfast: [],
-                lunch: [],
-                dinner: [],
-            };
-        }
-        if (!diary.meals[meal]) {
-            diary.meals[meal] = [];
-        }
-        const newFood = new food_1.Food(foodData);
-        const savedFood = await newFood.save();
-        diary.meals[meal].push(savedFood._id);
-        await diary.save();
-        return diary;
+const addFoodToMeal = async (diaryId, meal, food, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
     }
-    catch (error) {
-        throw new Error("Error adding food to meal: " + error);
+    const diary = doc.data();
+    // Check if userId matches (if provided)
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
     }
+    const foodItem = {
+        id: Date.now().toString(), // Simple ID generation
+        name: food.name,
+        calories: food.calories,
+        protein: food.protein ?? 0,
+        carbs: food.carbs ?? 0,
+        fat: food.fat ?? 0,
+    };
+    await docRef.update({
+        [`meals.${meal}`]: firestore_1.FieldValue.arrayUnion(foodItem),
+        updatedAt: new Date(),
+    });
+    // Return updated diary
+    const updatedDoc = await docRef.get();
+    return updatedDoc.data();
 };
 exports.addFoodToMeal = addFoodToMeal;
+const addExercise = async (diaryId, exercise, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
+    }
+    const diary = doc.data();
+    // Check if userId matches (if provided)
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
+    const exerciseItem = {
+        id: Date.now().toString(), // Simple ID generation
+        name: exercise.name,
+        calories: exercise.calories,
+        durationMin: exercise.durationMin,
+    };
+    await docRef.update({
+        exercises: firestore_1.FieldValue.arrayUnion(exerciseItem),
+        updatedAt: new Date(),
+    });
+    // Return updated diary
+    const updatedDoc = await docRef.get();
+    return updatedDoc.data();
+};
+exports.addExercise = addExercise;
+const removeExercise = async (diaryId, exerciseId, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
+    }
+    const diary = doc.data();
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
+    const updatedExercises = (diary.exercises || []).filter((e) => e.id !== exerciseId);
+    await docRef.update({
+        exercises: updatedExercises,
+        updatedAt: new Date(),
+    });
+    const updatedDoc = await docRef.get();
+    return updatedDoc.data();
+};
+exports.removeExercise = removeExercise;
+const removeFoodFromMeal = async (diaryId, meal, foodId, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
+    }
+    const diary = doc.data();
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
+    const foods = diary.meals[meal];
+    const foodIndex = foods.findIndex((f) => f.id === foodId);
+    if (foodIndex === -1) {
+        throw new Error("Food item not found");
+    }
+    foods.splice(foodIndex, 1);
+    await docRef.update({
+        [`meals.${meal}`]: foods,
+        updatedAt: new Date(),
+    });
+    const updatedDoc = await docRef.get();
+    return updatedDoc.data();
+};
+exports.removeFoodFromMeal = removeFoodFromMeal;
+const updateFoodInMeal = async (diaryId, meal, foodId, food, userId) => {
+    const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
+    const doc = await docRef.get();
+    if (!doc.exists) {
+        throw new Error("Diary entry not found");
+    }
+    const diary = doc.data();
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
+    const foods = diary.meals[meal];
+    const foodIndex = foods.findIndex((f) => f.id === foodId);
+    if (foodIndex === -1) {
+        throw new Error("Food item not found");
+    }
+    foods[foodIndex] = { ...foods[foodIndex], ...food };
+    await docRef.update({
+        [`meals.${meal}`]: foods,
+        updatedAt: new Date(),
+    });
+    const updatedDoc = await docRef.get();
+    return updatedDoc.data();
+};
+exports.updateFoodInMeal = updateFoodInMeal;

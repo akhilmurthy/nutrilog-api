@@ -1,28 +1,45 @@
-import { Schema, model, InferSchemaType } from "mongoose";
+export interface UserSettings {
+  displayName?: string;
+  weightUnit?: 'kg' | 'lb';
+  calorieGoal?: number;
+  proteinGoal?: number;
+  carbsGoal?: number;
+  fatGoal?: number;
+  avatarUrl?: string;
+  goalWeight?: number; // Always stored in kg
+  // Body metrics for calorie calculation
+  currentWeight?: number; // Always stored in kg
+  height?: number; // Always stored in cm
+  heightUnit?: 'in' | 'cm'; // Display preference only
+  dob?: string; // ISO date (yyyy-mm-dd); age is derived from this
+  sex?: 'male' | 'female';
+  activityLevel?: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+  weeklyWeightLossGoal?: number; // lbs per week (e.g., 0.5, 1, 1.5, 2)
+  // AI Coach settings
+  aiCoachEnabled?: boolean;
+  aiInsightsFrequency?: 'daily' | 'weekly' | 'off';
+  aiMealSuggestions?: boolean;
+  aiCoachingStyle?: 'encouraging' | 'data-driven' | 'balanced';
+  // Notification settings
+  mealReminders?: boolean;
+  weeklyReportEnabled?: boolean;
+  // Privacy settings
+  profileVisibility?: 'private' | 'friends' | 'public';
+  shareProgress?: boolean;
+}
 
-const userSchema = new Schema(
-  {
-    userId: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
+export interface WeightEntry {
+  id: string;
+  userId: string;
+  weight: number;
+  unit: 'kg' | 'lb';
+  date: Date;
+  createdAt: Date;
+}
 
-    name: { type: String, trim: true },
-    email: { type: String, lowercase: true },
-    dateOfBirth: Date,
-    gender: {
-      type: String,
-      enum: ["male", "female", "other"],
-    },
-    settings: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
-  },
-  { timestamps: true }
-);
-
-export type UserDocument = InferSchemaType<typeof userSchema>;
-export default model<UserDocument>("User", userSchema);
+export interface UserDocument {
+  userId: string;
+  settings: UserSettings;
+  createdAt: Date;
+  updatedAt: Date;
+}

@@ -33,51 +33,107 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteDiary = exports.getDiary = exports.updateDiary = exports.createDiary = void 0;
+exports.removeExercise = exports.addExercise = exports.updateFoodInMeal = exports.removeFoodFromMeal = exports.addFoodToMeal = exports.deleteDiary = exports.getDiary = exports.replaceDiary = exports.createDiary = void 0;
 const diaryService = __importStar(require("../services/diaryService"));
-// Diary Controller
-const createDiary = async (req, res) => {
+const getUserId = (req) => req.userId;
+const createDiary = async (req, res, next) => {
     try {
-        const diaryData = req.body;
-        const result = await diaryService.createDiaryEntry(diaryData);
-        res.status(201).json(result);
+        const userId = getUserId(req);
+        const diary = await diaryService.createDiaryEntry(userId, req.body);
+        res.status(201).json(diary);
     }
     catch (err) {
-        res.status(500).json({ message: "Error creating diary entry" });
+        next(err);
     }
 };
 exports.createDiary = createDiary;
-const updateDiary = async (req, res) => {
+const replaceDiary = async (req, res, next) => {
     try {
-        const { id } = req.params;
-        const diaryData = req.body;
-        const result = await diaryService.updateDiaryEntry(id, diaryData);
-        res.status(200).json(result);
-    }
-    catch (err) {
-        res.status(500).json({ message: "Error updating diary entry" });
-    }
-};
-exports.updateDiary = updateDiary;
-const getDiary = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const diary = await diaryService.getDiaryById(id);
+        const diary = await diaryService.replaceDiaryEntry(req.params.id, req.body);
         res.status(200).json(diary);
     }
     catch (err) {
-        res.status(500).json({ message: "Error retrieving diary entry" });
+        next(err);
+    }
+};
+exports.replaceDiary = replaceDiary;
+const getDiary = async (req, res, next) => {
+    try {
+        const diary = await diaryService.getDiaryById(req.params.id, getUserId(req));
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
     }
 };
 exports.getDiary = getDiary;
-const deleteDiary = async (req, res) => {
+const deleteDiary = async (req, res, next) => {
     try {
-        const { id } = req.params;
-        await diaryService.deleteDiaryEntry(id);
-        res.status(204).send();
+        await diaryService.deleteDiaryEntry(req.params.id, getUserId(req));
+        res.sendStatus(204);
     }
     catch (err) {
-        res.status(500).json({ message: "Error deleting diary entry" });
+        next(err);
     }
 };
 exports.deleteDiary = deleteDiary;
+const addFoodToMeal = async (req, res, next) => {
+    try {
+        const userId = getUserId(req);
+        const { diaryId, meal } = req.params;
+        const diary = await diaryService.addFoodToMeal(diaryId, meal, req.body, userId);
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
+    }
+};
+exports.addFoodToMeal = addFoodToMeal;
+const removeFoodFromMeal = async (req, res, next) => {
+    try {
+        const userId = getUserId(req);
+        const { diaryId, meal, foodId } = req.params;
+        const diary = await diaryService.removeFoodFromMeal(diaryId, meal, foodId, userId);
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
+    }
+};
+exports.removeFoodFromMeal = removeFoodFromMeal;
+const updateFoodInMeal = async (req, res, next) => {
+    try {
+        const userId = getUserId(req);
+        const { diaryId, meal, foodId } = req.params;
+        const diary = await diaryService.updateFoodInMeal(diaryId, meal, foodId, req.body, userId);
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
+    }
+};
+exports.updateFoodInMeal = updateFoodInMeal;
+const addExercise = async (req, res, next) => {
+    try {
+        const userId = getUserId(req);
+        const { diaryId } = req.params;
+        const diary = await diaryService.addExercise(diaryId, req.body, userId);
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
+    }
+};
+exports.addExercise = addExercise;
+const removeExercise = async (req, res, next) => {
+    try {
+        const userId = getUserId(req);
+        const { diaryId, exerciseId } = req.params;
+        const diary = await diaryService.removeExercise(diaryId, exerciseId, userId);
+        res.status(200).json(diary);
+    }
+    catch (err) {
+        next(err);
+    }
+};
+exports.removeExercise = removeExercise;

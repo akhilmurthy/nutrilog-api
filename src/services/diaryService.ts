@@ -1,10 +1,9 @@
 // src/services/diaryService.ts
-import { Diary, DiaryDoc } from "../models/diary";
-import { Food, FoodDoc } from "../models/food";
-import mongoose from "mongoose";
-import { Types } from "mongoose";
+import { db } from "../config/firebase";
+import { DiaryDoc, Food, Exercise, MealType } from "../models/diary";
+import { FieldValue } from 'firebase-admin/firestore';
 
-type MealKey = "breakfast" | "lunch" | "dinner";
+const DIARIES_COLLECTION = "diaries";
 
 export const createDiaryEntry = async (
   userId: string | undefined,
@@ -13,54 +12,85 @@ export const createDiaryEntry = async (
     meals?: Partial<DiaryDoc["meals"]>;
     exercises?: DiaryDoc["exercises"];
   }
-) => {
-  const doc: any = {
-    date: payload.date,
+): Promise<DiaryDoc> => {
+  const now = new Date();
+  const dateKey = new Date(payload.date).toISOString().split('T')[0];
+  const docId = userId ? `${userId}_${dateKey}` : dateKey;
+
+  const doc: DiaryDoc = {
+    id: docId,
+    userId: userId || '',
+    date: new Date(payload.date),
     meals: {
       breakfast: payload.meals?.breakfast ?? [],
       lunch: payload.meals?.lunch ?? [],
       dinner: payload.meals?.dinner ?? [],
+      snacks: payload.meals?.snacks ?? [],
     },
     exercises: payload.exercises ?? [],
+    createdAt: now,
+    updatedAt: now,
   };
 
-  if (userId && Types.ObjectId.isValid(userId)) {
-    doc.user = new Types.ObjectId(userId);
-  }
-
-  const diary = await Diary.create(doc);
-  return diary.populate("meals.breakfast meals.lunch meals.dinner");
+  await db.collection(DIARIES_COLLECTION).doc(docId).set(doc);
+  return doc;
 };
 
-export const getDiaryById = async (id: string, userId?: string) => {
-  const qry = Diary.findById(id);
+export const getDiaryById = async (id: string, userId?: string): Promise<DiaryDoc> => {
+  const doc = await db.collection(DIARIES_COLLECTION).doc(id).get();
 
-  if (userId) qry.where("user").equals(userId);
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
 
-  const diary = await qry.populate("meals.breakfast meals.lunch meals.dinner");
+  const diary = doc.data() as DiaryDoc;
+  
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
 
-  if (!diary) throw new Error("Diary entry not found");
   return diary;
 };
 
-export const replaceDiaryEntry = (id: string, diary: DiaryDoc) =>
-  Diary.findByIdAndUpdate(id, diary, {
-    new: true,
-    overwrite: true,
-    runValidators: true,
-  });
 
-export const deleteDiaryEntry = async (id: string, userId?: string) => {
-  const res = await Diary.findOneAndDelete({
-    _id: id,
-    ...(userId ? { user: userId } : {}),
-  });
-  if (!res) throw new Error("Diary entry not found");
+export const replaceDiaryEntry = async (id: string, diary: DiaryDoc): Promise<DiaryDoc | null> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(id);
+  const doc = await docRef.get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+
+  const updatedDiary = {
+    ...diary,
+    updatedAt: new Date(),
+  };
+
+  await docRef.set(updatedDiary);
+  return updatedDiary;
+};
+
+export const deleteDiaryEntry = async (id: string, userId?: string): Promise<void> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(id);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
+
+  const diary = doc.data() as DiaryDoc;
+  
+  // Check if userId matches (if provided)
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  await docRef.delete();
 };
 
 export const addFoodToMeal = async (
   diaryId: string,
-  meal: MealKey,
+  meal: MealType,
   food: {
     name: string;
     calories: number;
@@ -69,18 +99,38 @@ export const addFoodToMeal = async (
     fat?: number;
   },
   userId?: string
-) => {
-  const foodDoc = await Food.create(food);
-  const foodId: Types.ObjectId = foodDoc._id;
+): Promise<DiaryDoc> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
+  const doc = await docRef.get();
 
-  const diary = await Diary.findOneAndUpdate(
-    { _id: diaryId, ...(userId ? { user: userId } : {}) },
-    { $push: { [`meals.${meal}`]: foodId } },
-    { new: true, runValidators: true }
-  ).populate(`meals.${meal}`);
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
 
-  if (!diary) throw new Error("Diary entry not found");
-  return diary;
+  const diary = doc.data() as DiaryDoc;
+  
+  // Check if userId matches (if provided)
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  const foodItem: Food = {
+    id: Date.now().toString(), // Simple ID generation
+    name: food.name,
+    calories: food.calories,
+    protein: food.protein ?? 0,
+    carbs: food.carbs ?? 0,
+    fat: food.fat ?? 0,
+  };
+
+  await docRef.update({
+    [`meals.${meal}`]: FieldValue.arrayUnion(foodItem),
+    updatedAt: new Date(),
+  });
+
+  // Return updated diary
+  const updatedDoc = await docRef.get();
+  return updatedDoc.data() as DiaryDoc;
 };
 
 export const addExercise = async (
@@ -91,13 +141,140 @@ export const addExercise = async (
     durationMin: number;
   },
   userId?: string
-) => {
-  const diary = await Diary.findOneAndUpdate(
-    { _id: diaryId, ...(userId ? { user: userId } : {}) },
-    { $push: { exercises: exercise } },
-    { new: true, runValidators: true }
+): Promise<DiaryDoc> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
+
+  const diary = doc.data() as DiaryDoc;
+  
+  // Check if userId matches (if provided)
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  const exerciseItem: Exercise = {
+    id: Date.now().toString(), // Simple ID generation
+    name: exercise.name,
+    calories: exercise.calories,
+    durationMin: exercise.durationMin,
+  };
+
+  await docRef.update({
+    exercises: FieldValue.arrayUnion(exerciseItem),
+    updatedAt: new Date(),
+  });
+
+  // Return updated diary
+  const updatedDoc = await docRef.get();
+  return updatedDoc.data() as DiaryDoc;
+};
+
+export const removeExercise = async (
+  diaryId: string,
+  exerciseId: string,
+  userId?: string
+): Promise<DiaryDoc> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
+
+  const diary = doc.data() as DiaryDoc;
+
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  const updatedExercises = (diary.exercises || []).filter(
+    (e) => e.id !== exerciseId
   );
 
-  if (!diary) throw new Error("Diary entry not found");
-  return diary;
+  await docRef.update({
+    exercises: updatedExercises,
+    updatedAt: new Date(),
+  });
+
+  const updatedDoc = await docRef.get();
+  return updatedDoc.data() as DiaryDoc;
+};
+
+export const removeFoodFromMeal = async (
+  diaryId: string,
+  meal: MealType,
+  foodId: string,
+  userId?: string
+): Promise<DiaryDoc> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
+
+  const diary = doc.data() as DiaryDoc;
+
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  const foods = diary.meals[meal];
+  const foodIndex = foods.findIndex((f) => f.id === foodId);
+
+  if (foodIndex === -1) {
+    throw new Error("Food item not found");
+  }
+
+  foods.splice(foodIndex, 1);
+
+  await docRef.update({
+    [`meals.${meal}`]: foods,
+    updatedAt: new Date(),
+  });
+
+  const updatedDoc = await docRef.get();
+  return updatedDoc.data() as DiaryDoc;
+};
+
+export const updateFoodInMeal = async (
+  diaryId: string,
+  meal: MealType,
+  foodId: string,
+  food: Partial<Food>,
+  userId?: string
+): Promise<DiaryDoc> => {
+  const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    throw new Error("Diary entry not found");
+  }
+
+  const diary = doc.data() as DiaryDoc;
+
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
+
+  const foods = diary.meals[meal];
+  const foodIndex = foods.findIndex((f) => f.id === foodId);
+
+  if (foodIndex === -1) {
+    throw new Error("Food item not found");
+  }
+
+  foods[foodIndex] = { ...foods[foodIndex], ...food };
+
+  await docRef.update({
+    [`meals.${meal}`]: foods,
+    updatedAt: new Date(),
+  });
+
+  const updatedDoc = await docRef.get();
+  return updatedDoc.data() as DiaryDoc;
 };
