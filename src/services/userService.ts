@@ -86,9 +86,10 @@ export async function getDiaryByDate(userId: string, date: string): Promise<Diar
   const doc = await db.collection(DIARIES_COLLECTION).doc(docId).get();
 
   if (!doc.exists) {
-    // Create a new diary entry for this date if it doesn't exist
+    // Return a virtual diary structure without persisting to DB
+    // The diary will be created when the user actually adds food/exercise
     const now = new Date();
-    const diaryDoc: DiaryDoc = {
+    return {
       id: docId,
       userId: userId,
       date: new Date(date),
@@ -102,9 +103,6 @@ export async function getDiaryByDate(userId: string, date: string): Promise<Diar
       createdAt: now,
       updatedAt: now,
     };
-
-    await db.collection(DIARIES_COLLECTION).doc(docId).set(diaryDoc);
-    return diaryDoc;
   }
 
   return doc.data() as DiaryDoc;
