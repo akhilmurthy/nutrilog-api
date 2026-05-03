@@ -43,4 +43,4 @@ ENV PORT=8080
 # Cloud Run uses port 8080
 EXPOSE 8080
 
-CMD ["node", "dist/app.js"]
+CMD ["sh", "-c", "echo '=== Runtime /app contents ===' && ls -la /app && echo '=== Runtime /app/dist contents ===' && ls -la /app/dist 2>&1 || echo 'dist not found' && node dist/app.js"]
