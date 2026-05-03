@@ -8,9 +8,8 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci --only=production
 
-# Copy built files and assets
+# Copy built files
 COPY dist/ ./dist/
-COPY nutrilog-firebase-admin.json ./
 
 # Set environment variables
 ENV NODE_ENV=production
