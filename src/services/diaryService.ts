@@ -103,25 +103,44 @@ export const addFoodToMeal = async (
   const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
   const doc = await docRef.get();
 
-  if (!doc.exists) {
-    throw new Error("Diary entry not found");
-  }
-
-  const diary = doc.data() as DiaryDoc;
-  
-  // Check if userId matches (if provided)
-  if (userId && diary.userId !== userId) {
-    throw new Error("Diary entry not found");
-  }
-
   const foodItem: Food = {
-    id: Date.now().toString(), // Simple ID generation
+    id: Date.now().toString(),
     name: food.name,
     calories: food.calories,
     protein: food.protein ?? 0,
     carbs: food.carbs ?? 0,
     fat: food.fat ?? 0,
   };
+
+  if (!doc.exists) {
+    // Create diary on-the-fly when adding first item
+    const dateKey = diaryId.includes('_') ? diaryId.split('_').pop()! : diaryId;
+    const now = new Date();
+    const newDiary: DiaryDoc = {
+      id: diaryId,
+      userId: userId || '',
+      date: new Date(dateKey),
+      meals: {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snacks: [],
+      },
+      exercises: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    newDiary.meals[meal].push(foodItem);
+    await docRef.set(newDiary);
+    return newDiary;
+  }
+
+  const diary = doc.data() as DiaryDoc;
+
+  // Check if userId matches (if provided)
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
 
   await docRef.update({
     [`meals.${meal}`]: FieldValue.arrayUnion(foodItem),
@@ -145,23 +164,41 @@ export const addExercise = async (
   const docRef = db.collection(DIARIES_COLLECTION).doc(diaryId);
   const doc = await docRef.get();
 
-  if (!doc.exists) {
-    throw new Error("Diary entry not found");
-  }
-
-  const diary = doc.data() as DiaryDoc;
-  
-  // Check if userId matches (if provided)
-  if (userId && diary.userId !== userId) {
-    throw new Error("Diary entry not found");
-  }
-
   const exerciseItem: Exercise = {
-    id: Date.now().toString(), // Simple ID generation
+    id: Date.now().toString(),
     name: exercise.name,
     calories: exercise.calories,
     durationMin: exercise.durationMin,
   };
+
+  if (!doc.exists) {
+    // Create diary on-the-fly when adding first item
+    const dateKey = diaryId.includes('_') ? diaryId.split('_').pop()! : diaryId;
+    const now = new Date();
+    const newDiary: DiaryDoc = {
+      id: diaryId,
+      userId: userId || '',
+      date: new Date(dateKey),
+      meals: {
+        breakfast: [],
+        lunch: [],
+        dinner: [],
+        snacks: [],
+      },
+      exercises: [exerciseItem],
+      createdAt: now,
+      updatedAt: now,
+    };
+    await docRef.set(newDiary);
+    return newDiary;
+  }
+
+  const diary = doc.data() as DiaryDoc;
+
+  // Check if userId matches (if provided)
+  if (userId && diary.userId !== userId) {
+    throw new Error("Diary entry not found");
+  }
 
   await docRef.update({
     exercises: FieldValue.arrayUnion(exerciseItem),

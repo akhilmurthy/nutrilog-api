@@ -70,22 +70,41 @@ exports.deleteDiaryEntry = deleteDiaryEntry;
 const addFoodToMeal = async (diaryId, meal, food, userId) => {
     const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
     const doc = await docRef.get();
-    if (!doc.exists) {
-        throw new Error("Diary entry not found");
-    }
-    const diary = doc.data();
-    // Check if userId matches (if provided)
-    if (userId && diary.userId !== userId) {
-        throw new Error("Diary entry not found");
-    }
     const foodItem = {
-        id: Date.now().toString(), // Simple ID generation
+        id: Date.now().toString(),
         name: food.name,
         calories: food.calories,
         protein: food.protein ?? 0,
         carbs: food.carbs ?? 0,
         fat: food.fat ?? 0,
     };
+    if (!doc.exists) {
+        // Create diary on-the-fly when adding first item
+        const dateKey = diaryId.includes('_') ? diaryId.split('_').pop() : diaryId;
+        const now = new Date();
+        const newDiary = {
+            id: diaryId,
+            userId: userId || '',
+            date: new Date(dateKey),
+            meals: {
+                breakfast: [],
+                lunch: [],
+                dinner: [],
+                snacks: [],
+            },
+            exercises: [],
+            createdAt: now,
+            updatedAt: now,
+        };
+        newDiary.meals[meal].push(foodItem);
+        await docRef.set(newDiary);
+        return newDiary;
+    }
+    const diary = doc.data();
+    // Check if userId matches (if provided)
+    if (userId && diary.userId !== userId) {
+        throw new Error("Diary entry not found");
+    }
     await docRef.update({
         [`meals.${meal}`]: firestore_1.FieldValue.arrayUnion(foodItem),
         updatedAt: new Date(),
@@ -98,20 +117,38 @@ exports.addFoodToMeal = addFoodToMeal;
 const addExercise = async (diaryId, exercise, userId) => {
     const docRef = firebase_1.db.collection(DIARIES_COLLECTION).doc(diaryId);
     const doc = await docRef.get();
+    const exerciseItem = {
+        id: Date.now().toString(),
+        name: exercise.name,
+        calories: exercise.calories,
+        durationMin: exercise.durationMin,
+    };
     if (!doc.exists) {
-        throw new Error("Diary entry not found");
+        // Create diary on-the-fly when adding first item
+        const dateKey = diaryId.includes('_') ? diaryId.split('_').pop() : diaryId;
+        const now = new Date();
+        const newDiary = {
+            id: diaryId,
+            userId: userId || '',
+            date: new Date(dateKey),
+            meals: {
+                breakfast: [],
+                lunch: [],
+                dinner: [],
+                snacks: [],
+            },
+            exercises: [exerciseItem],
+            createdAt: now,
+            updatedAt: now,
+        };
+        await docRef.set(newDiary);
+        return newDiary;
     }
     const diary = doc.data();
     // Check if userId matches (if provided)
     if (userId && diary.userId !== userId) {
         throw new Error("Diary entry not found");
     }
-    const exerciseItem = {
-        id: Date.now().toString(), // Simple ID generation
-        name: exercise.name,
-        calories: exercise.calories,
-        durationMin: exercise.durationMin,
-    };
     await docRef.update({
         exercises: firestore_1.FieldValue.arrayUnion(exerciseItem),
         updatedAt: new Date(),
