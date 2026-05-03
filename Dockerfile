@@ -16,6 +16,9 @@ COPY src/ ./src/
 # Build TypeScript
 RUN npm run build
 
+# Debug: verify dist folder contents
+RUN echo "=== Contents of /app/dist ===" && ls -la /app/dist && echo "=== Contents of /app/dist/app.js ===" && head -5 /app/dist/app.js
+
 # Production stage
 FROM node:22-slim
 
