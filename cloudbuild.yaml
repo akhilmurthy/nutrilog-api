@@ -2,15 +2,15 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Build the container image
+  # Build the container image with commit SHA tag
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/nutrilog-api', '.']
+    args: ['build', '--no-cache', '-t', 'gcr.io/$PROJECT_ID/nutrilog-api:$SHORT_SHA', '-t', 'gcr.io/$PROJECT_ID/nutrilog-api:latest', '.']
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/nutrilog-api']
+    args: ['push', 'gcr.io/$PROJECT_ID/nutrilog-api:$SHORT_SHA']
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run with specific image tag
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -18,7 +18,7 @@ steps:
       - 'deploy'
       - 'nutrilog-api'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/nutrilog-api'
+      - 'gcr.io/$PROJECT_ID/nutrilog-api:$SHORT_SHA'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -28,4 +28,4 @@ steps:
       - 'ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,/app/nutrilog-firebase-admin.json=FIREBASE_ADMIN_KEY:latest'
 
 images:
-  - 'gcr.io/$PROJECT_ID/nutrilog-api'
+  - 'gcr.io/$PROJECT_ID/nutrilog-api:$SHORT_SHA'

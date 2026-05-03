@@ -33,6 +33,9 @@ RUN npm ci --omit=dev
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Debug: verify dist folder in production stage
+RUN echo "=== Production stage: Contents of /app ===" && ls -la /app && echo "=== Contents of /app/dist ===" && ls -la /app/dist
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
