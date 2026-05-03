@@ -1,0 +1,30 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/nutrilog-api', '.']
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/nutrilog-api']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'nutrilog-api'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/nutrilog-api'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'FIREBASE_SERVICE_KEY=nutrilog-firebase-admin.json'
+      - '--set-secrets'
+      - 'ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/nutrilog-api'

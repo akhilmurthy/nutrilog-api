@@ -23,7 +23,7 @@ export class OpenFoodFactsClient {
 
   static async searchByText(query: string, limit: number = 10): Promise<any> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
     try {
       const params = new URLSearchParams({

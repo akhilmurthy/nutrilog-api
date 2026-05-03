@@ -4,9 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // src/app.ts
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config(); // Must be called before other imports that use env vars
 const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
-const dotenv_1 = __importDefault(require("dotenv"));
+const cors_1 = __importDefault(require("cors"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const swagger_1 = require("./config/swagger");
 // Initialize Firebase (this will set up the connection)
@@ -14,9 +16,11 @@ require("./config/firebase");
 const diaryRoutes_1 = __importDefault(require("./routes/diaryRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const foodRoutes_1 = __importDefault(require("./routes/foodRoutes"));
-dotenv_1.default.config();
+const agent_1 = require("./agent");
 function startServer() {
     const app = (0, express_1.default)();
+    // CORS - allow all origins
+    app.use((0, cors_1.default)());
     app.use(body_parser_1.default.json());
     // Request/Response logging middleware
     app.use((req, res, next) => {
@@ -40,6 +44,7 @@ function startServer() {
     app.use("/api/diaries", diaryRoutes_1.default);
     app.use("/api/users", userRoutes_1.default);
     app.use("/api/food", foodRoutes_1.default);
+    app.use("/api/agent", agent_1.agentRoutes);
     app.get("/", (_req, res) => {
         res.json({
             message: "Nutrition Tracker API started successfully",

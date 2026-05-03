@@ -1,7 +1,10 @@
 // src/app.ts
+import dotenv from "dotenv";
+dotenv.config(); // Must be called before other imports that use env vars
+
 import express, { Request, Response, NextFunction } from "express";
 import bodyParser from "body-parser";
-import dotenv from "dotenv";
+import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { specs } from "./config/swagger";
 
@@ -10,12 +13,13 @@ import "./config/firebase";
 import diaryRoutes from "./routes/diaryRoutes";
 import userRoutes from "./routes/userRoutes";
 import foodRoutes from "./routes/foodRoutes";
-
-dotenv.config();
+import { agentRoutes } from "./agent";
 
 function startServer() {
   const app = express();
 
+  // CORS - allow all origins
+  app.use(cors());
   app.use(bodyParser.json());
 
   // Request/Response logging middleware
@@ -44,6 +48,7 @@ function startServer() {
   app.use("/api/diaries", diaryRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/food", foodRoutes);
+  app.use("/api/agent", agentRoutes);
 
   app.get("/", (_req: Request, res: Response) => {
     res.json({
