@@ -25,7 +25,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-secrets'
-      - 'ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,/app/nutrilog-firebase-admin.json=FIREBASE_ADMIN_KEY:latest'
+      - 'ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,/secrets/nutrilog-firebase-admin.json=FIREBASE_ADMIN_KEY:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/nutrilog-api:$SHORT_SHA'

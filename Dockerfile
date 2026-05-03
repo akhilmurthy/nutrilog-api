@@ -16,9 +16,6 @@ COPY src/ ./src/
 # Build TypeScript
 RUN npm run build
 
-# Debug: verify dist folder contents
-RUN echo "=== Contents of /app/dist ===" && ls -la /app/dist && echo "=== Contents of /app/dist/app.js ===" && head -5 /app/dist/app.js
-
 # Production stage
 FROM node:22-slim
 
@@ -33,9 +30,6 @@ RUN npm ci --omit=dev
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Debug: verify dist folder in production stage
-RUN echo "=== Production stage: Contents of /app ===" && ls -la /app && echo "=== Contents of /app/dist ===" && ls -la /app/dist
-
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
@@ -43,4 +37,4 @@ ENV PORT=8080
 # Cloud Run uses port 8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "echo '=== Runtime /app contents ===' && ls -la /app && echo '=== Runtime /app/dist contents ===' && ls -la /app/dist 2>&1 || echo 'dist not found' && node dist/app.js"]
+CMD ["node", "dist/app.js"]
