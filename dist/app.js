@@ -16,6 +16,7 @@ require("./config/firebase");
 const diaryRoutes_1 = __importDefault(require("./routes/diaryRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const foodRoutes_1 = __importDefault(require("./routes/foodRoutes"));
+const recipeRoutes_1 = __importDefault(require("./routes/recipeRoutes"));
 const agent_1 = require("./agent");
 function startServer() {
     const app = (0, express_1.default)();
@@ -44,6 +45,7 @@ function startServer() {
     app.use("/api/diaries", diaryRoutes_1.default);
     app.use("/api/users", userRoutes_1.default);
     app.use("/api/food", foodRoutes_1.default);
+    app.use("/api/recipes", recipeRoutes_1.default);
     app.use("/api/agent", agent_1.agentRoutes);
     app.get("/", (_req, res) => {
         res.json({

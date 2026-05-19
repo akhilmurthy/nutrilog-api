@@ -1,9 +1,5 @@
 # Override .gitignore for Cloud Build
-# Include dist/ and firebase admin key
-
 node_modules/
 .env
 .git/
-src/
 *.md
-tsconfig.json

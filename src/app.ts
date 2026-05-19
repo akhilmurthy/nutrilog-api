@@ -13,6 +13,7 @@ import "./config/firebase";
 import diaryRoutes from "./routes/diaryRoutes";
 import userRoutes from "./routes/userRoutes";
 import foodRoutes from "./routes/foodRoutes";
+import recipeRoutes from "./routes/recipeRoutes";
 import { agentRoutes } from "./agent";
 
 function startServer() {
@@ -48,6 +49,7 @@ function startServer() {
   app.use("/api/diaries", diaryRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/food", foodRoutes);
+  app.use("/api/recipes", recipeRoutes);
   app.use("/api/agent", agentRoutes);
 
   app.get("/", (_req: Request, res: Response) => {
